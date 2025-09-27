@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CoCreate – Task Board</title>
+  <link rel="stylesheet" href="assets/css/styles.css" />
+</head>
+<body>
+  <div class="mobile-frame">
+    <div class="mobile-content">
+      <div class="container">
+    <div class="header">
+      <button class="button" onclick="CoCreate.nav('home.html')">←</button>
+      <div class="title">Task Board</div>
+    </div>
+
+    <div class="card">
+      <div class="task-header">
+        <div>
+          <div style="font-weight:700; font-size:18px">Project Completion Stats</div>
+          <div class="small">Track progress across all projects</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-number" id="total-projects">0</div>
+          <div class="stat-label">Total Projects</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="task-board" class="task-board"></div>
+
+    <div class="footer-space"></div>
+      </div>
+    </div>
+    
+    <div class="navbar">
+    <a onclick="CoCreate.nav('home.html')">Home</a>
+    <a onclick="CoCreate.nav('dms.html')">DMs</a>
+    <a onclick="CoCreate.nav('saved.html')">Saved</a>
+    <a onclick="CoCreate.nav('profile.html')">My Profile</a>
+    <a class="active">Task Board</a>
+    </div>
+  </div>
+
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script>
+    const user = CoCreate.ensureAuth();
+
+    function renderTaskBoard(){
+      const board = document.getElementById('task-board');
+      board.innerHTML = '';
+
+      // Calculate stats
+      const totalProjects = CoCreateData.projects.length;
+      const completedProjects = CoCreateData.projects.filter(p => p.team.length >= 2).length;
+      const activeProjects = CoCreateData.projects.filter(p => p.team.length > 0 && p.team.length < 2).length;
+      const totalMembers = CoCreateData.projects.reduce((sum, p) => sum + p.team.length, 0);
+
+      document.getElementById('total-projects').textContent = totalProjects;
+
+      // Create project cards with completion stats
+      CoCreateData.projects.forEach(p => {
+        const creator = getUserById(p.creatorId) || user;
+        const completionPercent = Math.min(100, (p.team.length / 3) * 100); // Assuming 3 is ideal team size
+        const card = document.createElement('div');
+        card.className = 'task-card';
+        
+        card.innerHTML = `
+          <div class="task-header">
+            <div>
+              <div style="font-weight:600">${p.title}</div>
+              <div class="small">by ${creator.name}</div>
+            </div>
+            <div class="progress-ring">
+              <svg viewBox="0 0 50 50">
+                <circle cx="25" cy="25" r="20" />
+                <circle cx="25" cy="25" r="20" class="progress" 
+                        style="stroke-dashoffset: ${157 - (157 * completionPercent / 100)}" />
+              </svg>
+              <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 10px; font-weight: 600; color: var(--primary);">
+                ${Math.round(completionPercent)}%
+              </div>
+            </div>
+          </div>
+          
+          <div class="task-stats">
+            <div class="stat-item">
+              <div class="stat-number">${p.team.length}</div>
+              <div class="stat-label">Members</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-number">${p.requiredSkills.length}</div>
+              <div class="stat-label">Skills</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-number">${p.savedBy.length}</div>
+              <div class="stat-label">Saved</div>
+            </div>
+          </div>
+          
+          <div class="chips" style="margin-top: 12px">
+            ${p.requiredSkills.map(s => `<span class="chip">${s}</span>`).join('')}
+          </div>
+          
+          <div style="margin-top: 12px; font-size: 12px; color: var(--muted)">
+            ${p.team.length === 0 ? 'No members yet' : 
+              p.team.length === 1 ? 'Looking for more members' :
+              p.team.length >= 2 ? 'Team complete!' : 'In progress'}
+          </div>
+        `;
+        
+        board.appendChild(card);
+      });
+
+      // Add overall stats card
+      const statsCard = document.createElement('div');
+      statsCard.className = 'task-card';
+      statsCard.innerHTML = `
+        <div class="task-header">
+          <div style="font-weight:600">Overall Progress</div>
+        </div>
+        <div class="task-stats">
+          <div class="stat-item">
+            <div class="stat-number">${completedProjects}</div>
+            <div class="stat-label">Completed</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-number">${activeProjects}</div>
+            <div class="stat-label">Active</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-number">${totalMembers}</div>
+            <div class="stat-label">Total Members</div>
+          </div>
+        </div>
+        <div style="margin-top: 12px">
+          <div class="progress">
+            <span style="width: ${(completedProjects / totalProjects) * 100}%"></span>
+          </div>
+          <div class="small" style="margin-top: 4px">
+            ${Math.round((completedProjects / totalProjects) * 100)}% of projects have full teams
+          </div>
+        </div>
+      `;
+      board.insertBefore(statsCard, board.firstChild);
+    }
+
+    renderTaskBoard();
+  </script>
+</body>
+</html>

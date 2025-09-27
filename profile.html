@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CoCreate – Profile</title>
+  <link rel="stylesheet" href="assets/css/styles.css" />
+</head>
+<body>
+  <div class="mobile-frame">
+    <div class="mobile-content">
+      <div class="container">
+    <div class="header">
+      <button class="button" onclick="CoCreate.nav('home.html')">←</button>
+      <div class="title">My profile</div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="align-items:center">
+        <img id="avatar" class="avatar" src="" alt="avatar" />
+        <div>
+          <div id="name" style="font-weight:700">Name</div>
+          <div class="small" id="school">Add school</div>
+        </div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button class="button">Share profile</button>
+        <button class="button">Add project</button>
+      </div>
+      <div class="section-title">Profile Completion</div>
+      <div class="progress"><span id="progressbar"></span></div>
+    </div>
+
+    <div class="card" style="margin-top:12px">
+      <div class="section-title">Basics</div>
+      <div class="form">
+        <input id="input-name" placeholder="Full name" />
+        <input id="input-school" placeholder="Program, School" />
+        <input id="input-location" placeholder="Location" />
+      </div>
+      <div class="section-title">Skills</div>
+      <div class="form">
+        <div class="row">
+          <input id="skill-input" placeholder="Add a skill" />
+          <button id="add-skill" class="button">Add</button>
+        </div>
+        <div id="skills" class="chips"></div>
+      </div>
+      <div class="section-title">Resume</div>
+      <div class="form">
+        <input id="resume" placeholder="Paste resume link (Google Drive, etc.)" />
+      </div>
+      <div class="section-title">Profile Photo</div>
+      <div class="upload">
+        Paste image URL: <input id="photo" placeholder="https://..." />
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button id="save" class="button primary">Save</button>
+        <button class="button" onclick="CoCreate.nav('home.html')">Go to Home</button>
+      </div>
+    </div>
+
+    <div class="footer-space"></div>
+      </div>
+    </div>
+    
+    <div class="navbar">
+    <a onclick="CoCreate.nav('home.html')">Home</a>
+    <a onclick="CoCreate.nav('dms.html')">DMs</a>
+    <a onclick="CoCreate.nav('saved.html')">Saved</a>
+    <a class="active">My Profile</a>
+    <a onclick="CoCreate.nav('taskboard.html')">Task Board</a>
+    </div>
+  </div>
+
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script>
+    const user = CoCreate.ensureAuth();
+    document.getElementById('avatar').src = user.photo;
+    document.getElementById('name').textContent = user.name;
+    document.getElementById('school').textContent = user.school || 'Add school';
+
+    // Prefill inputs
+    document.getElementById('input-name').value = user.name || '';
+    document.getElementById('input-school').value = user.school || '';
+    document.getElementById('resume').value = user.resumeUrl || '';
+    document.getElementById('photo').value = user.photo || '';
+
+    function renderSkills(){
+      const el = document.getElementById('skills');
+      el.innerHTML = '';
+      (user.skills || []).forEach((s, idx) => {
+        const chip = document.createElement('span');
+        chip.className = 'chip';
+        chip.textContent = s;
+        chip.style.cursor = 'pointer';
+        chip.title = 'Click to remove';
+        chip.addEventListener('click', () => { user.skills.splice(idx,1); renderSkills(); updateProgress(); });
+        el.appendChild(chip);
+      });
+    }
+
+    document.getElementById('add-skill').addEventListener('click', () => {
+      const v = document.getElementById('skill-input').value.trim();
+      if(!v) return;
+      user.skills = user.skills || [];
+      if(!user.skills.includes(v)) user.skills.push(v);
+      document.getElementById('skill-input').value='';
+      renderSkills(); updateProgress();
+    });
+
+    function updateProgress(){
+      const filled = [
+        !!(document.getElementById('input-name').value.trim()),
+        !!(document.getElementById('input-school').value.trim()),
+        (user.skills||[]).length>0,
+        !!(document.getElementById('resume').value.trim()),
+        !!(document.getElementById('photo').value.trim())
+      ].filter(Boolean).length;
+      const percent = Math.round((filled/5)*100);
+      document.getElementById('progressbar').style.width = percent + '%';
+    }
+
+    document.getElementById('save').addEventListener('click', () => {
+      user.name = document.getElementById('input-name').value.trim();
+      user.school = document.getElementById('input-school').value.trim();
+      user.resumeUrl = document.getElementById('resume').value.trim();
+      const photo = document.getElementById('photo').value.trim();
+      if(photo) user.photo = photo;
+      CoCreate.saveCurrentUser(user);
+      document.getElementById('avatar').src = user.photo;
+      document.getElementById('name').textContent = user.name;
+      document.getElementById('school').textContent = user.school || 'Add school';
+      CoCreate.toast('Profile saved');
+      updateProgress();
+    });
+
+    function openMessageModal(){
+      const modal = document.createElement('div');
+      modal.className = 'message-modal';
+      modal.innerHTML = `
+        <div class="message-content">
+          <div class="message-header">
+            <div style="font-weight:600">Messages</div>
+            <button class="button" onclick="this.closest('.message-modal').remove()">×</button>
+          </div>
+          <div class="message-list">
+            <div class="message-item">
+              <div class="small">No messages yet. Start conversations by messaging project creators!</div>
+            </div>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
+
+    renderSkills();
+    updateProgress();
+  </script>
+</body>
+</html>

@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CoCreate – Matching</title>
+  <link rel="stylesheet" href="assets/css/styles.css" />
+</head>
+<body>
+  <div class="mobile-frame">
+    <div class="mobile-content">
+      <div class="container">
+    <div class="header">
+      <button class="button" onclick="CoCreate.nav('home.html')">←</button>
+      <div class="title">Suggested for you</div>
+    </div>
+
+    <div class="card">
+      <div class="kpi"><span class="num" id="skill-count">0</span> skills in your profile</div>
+      <div class="small" style="margin-top:6px">We match by overlapping skills between your profile and project requirements.</div>
+    </div>
+
+    <div id="list" style="margin-top:12px"></div>
+    <div class="footer-space"></div>
+      </div>
+    </div>
+    
+    <div class="navbar">
+    <a onclick="CoCreate.nav('home.html')" class="active">Home</a>
+    <a onclick="CoCreate.nav('dms.html')">DMs</a>
+    <a onclick="CoCreate.nav('saved.html')">Saved</a>
+    <a onclick="CoCreate.nav('profile.html')">My Profile</a>
+    <a onclick="CoCreate.nav('taskboard.html')">Task Board</a>
+    </div>
+  </div>
+
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script src="assets/js/matching.js"></script>
+  <script>
+    const user = CoCreate.ensureAuth();
+    document.getElementById('skill-count').textContent = (user.skills||[]).length;
+
+    function render(){
+      const list = document.getElementById('list');
+      list.innerHTML = '';
+      CoCreateData.projects
+        .map(p => {
+          const overlap = (p.requiredSkills||[]).filter(s => (user.skills||[]).includes(s));
+          const percent = computeMatchPercent(user.skills||[], p.requiredSkills||[]);
+          return { p, percent, overlap };
+        })
+        .sort((a,b)=>b.percent-a.percent)
+        .forEach(({p, percent, overlap}) => {
+          const card = document.createElement('div');
+          card.className = 'card';
+          card.innerHTML = `
+            <div class="row" style="justify-content:space-between; align-items:center">
+              <div style="font-weight:600">${p.title}</div>
+              ${renderMatchChip(percent)}
+            </div>
+            <div class="small" style="margin-top:6px">${p.overview}</div>
+            <div class="section-title">Why this matches</div>
+            <div class="chips">${overlap.map(s=>`<span class='chip accent'>${s}</span>`).join('') || '<span class="small">No direct overlap yet</span>'}</div>
+            <div class="actions" style="margin-top:10px">
+              <button class="button" onclick="CoCreate.nav('project.html'); localStorage.setItem('cocreate_project_id', '${p.id}')">Open</button>
+              <button class="button primary" onclick="CoCreate.nav('home.html')">Go back</button>
+            </div>
+          `;
+          list.appendChild(card);
+        });
+    }
+
+    function openMessageModal(){
+      const modal = document.createElement('div');
+      modal.className = 'message-modal';
+      modal.innerHTML = `
+        <div class="message-content">
+          <div class="message-header">
+            <div style="font-weight:600">Messages</div>
+            <button class="button" onclick="this.closest('.message-modal').remove()">×</button>
+          </div>
+          <div class="message-list">
+            <div class="message-item">
+              <div class="small">No messages yet. Start conversations by messaging project creators!</div>
+            </div>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
+
+    render();
+  </script>
+</body>
+</html>

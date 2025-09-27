@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CoCreate – Project</title>
+  <link rel="stylesheet" href="assets/css/styles.css" />
+</head>
+<body>
+  <div class="mobile-frame">
+    <div class="mobile-content">
+      <div class="container">
+    <div class="header">
+      <button class="button" onclick="CoCreate.nav('home.html')">←</button>
+      <div class="title">Project details</div>
+    </div>
+
+    <div id="content"></div>
+
+    <div class="footer-space"></div>
+      </div>
+    </div>
+    
+    <div class="navbar">
+    <a onclick="CoCreate.nav('home.html')" class="active">Home</a>
+    <a onclick="CoCreate.nav('dms.html')">DMs</a>
+    <a onclick="CoCreate.nav('saved.html')">Saved</a>
+    <a onclick="CoCreate.nav('profile.html')">My Profile</a>
+    <a onclick="CoCreate.nav('taskboard.html')">Task Board</a>
+    </div>
+  </div>
+
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script src="assets/js/matching.js"></script>
+  <script>
+    const user = CoCreate.ensureAuth();
+    const id = localStorage.getItem('cocreate_project_id');
+    const p = getProjectById(id) || CoCreateData.projects[0];
+
+    function render(){
+      const creator = getUserById(p.creatorId) || user;
+      const percent = computeMatchPercent(user.skills||[], p.requiredSkills||[]);
+      const root = document.getElementById('content');
+      root.innerHTML = `
+        <div class="card">
+          <div class="badge">${p.category}</div>
+          <div style="font-weight:700; font-size:18px">${p.title}</div>
+          <div class="small" style="margin-top:6px">${p.overview}</div>
+          <div class="section-title">Skills required</div>
+          <div class="chips">${p.requiredSkills.map(s=>`<span class='chip'>${s}</span>`).join('')}</div>
+          <div class="section-title">Time required</div>
+          <div>${p.timeRequired}</div>
+          <div class="section-title">Your fit</div>
+          ${renderMatchChip(percent)}
+          <div class="actions" style="margin-top:12px; display:flex; gap:8px; align-items:center">
+            <button class="button primary" onclick="join()">Join project</button>
+            <button class="button" onclick="message()" style="background:var(--primary); color:#fff; border-color:var(--primary)">Message</button>
+            <button onclick="save()" style="background:none; border:none; font-size:20px; cursor:pointer; color:${p.savedBy.includes(user.id)?'var(--primary)':'var(--muted)'}" title="${p.savedBy.includes(user.id)?'Saved':'Save'}">${p.savedBy.includes(user.id)?'🔖':'📌'}</button>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <div class="section-title">Creator</div>
+          <div class="row" style="align-items:center">
+            <img class="avatar" src="${creator.photo}" />
+            <div>
+              <div style="font-weight:600">${creator.name}</div>
+              <div class="small">${creator.school || ''}</div>
+            </div>
+          </div>
+          <div class="section-title">Team members</div>
+          <div class="chips">${(p.team.length? p.team: []).map(uid=>{
+            const u = getUserById(uid)||user; return `<span class='chip'>${u.name}</span>`;
+          }).join('') || '<span class="small">No members yet</span>'}
+          </div>
+        </div>
+      `;
+    }
+
+    function openMessageModal(){
+      const modal = document.createElement('div');
+      modal.className = 'message-modal';
+      modal.innerHTML = `
+        <div class="message-content">
+          <div class="message-header">
+            <div style="font-weight:600">Messages</div>
+            <button class="button" onclick="this.closest('.message-modal').remove()">×</button>
+          </div>
+          <div class="message-list">
+            <div class="message-item">
+              <div class="small">No messages yet. Start conversations by messaging project creators!</div>
+            </div>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
+
+    window.save = function(){ 
+      if(!p.savedBy.includes(user.id)) p.savedBy.push(user.id); 
+      CoCreate.toast('Saved'); 
+    };
+    
+    window.message = function(){ 
+      const creator = getUserById(p.creatorId) || user;
+      const modal = document.createElement('div');
+      modal.className = 'message-modal';
+      modal.innerHTML = `
+        <div class="message-content">
+          <div class="message-header">
+            <div style="font-weight:600">Message ${creator.name}</div>
+            <button class="button" onclick="this.closest('.message-modal').remove()">×</button>
+          </div>
+          <div class="message-list" id="message-list">
+            <div class="message-item">
+              <div class="small">No messages yet. Start the conversation!</div>
+            </div>
+          </div>
+          <div class="message-input">
+            <input id="message-text" placeholder="Type your message..." />
+            <button class="button primary" onclick="sendMessage('${creator.id}')">Send</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+      document.getElementById('message-text').focus();
+    };
+    
+    window.join = function(){ 
+      if(!p.team.includes(user.id)) p.team.push(user.id); 
+      CoCreate.toast('Joined'); 
+      render(); 
+    };
+
+    window.sendMessage = function(recipientId){
+      const text = document.getElementById('message-text').value.trim();
+      if(!text) return;
+      
+      const message = {
+        id: 'm' + Date.now(),
+        from: user.id,
+        to: recipientId,
+        text,
+        timestamp: new Date().toISOString()
+      };
+      
+      CoCreateData.messages.push(message);
+      CoCreate.toast('Message sent');
+      document.getElementById('message-text').value = '';
+    };
+
+    render();
+  </script>
+</body>
+</html>

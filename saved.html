@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CoCreate – Saved Projects</title>
+  <link rel="stylesheet" href="assets/css/styles.css" />
+</head>
+<body>
+  <div class="mobile-frame">
+    <div class="mobile-content">
+      <div class="container">
+    <div class="header">
+      <button class="button" onclick="CoCreate.nav('home.html')">←</button>
+      <div class="title">Saved Projects</div>
+    </div>
+
+    <div id="saved-projects"></div>
+
+    <div class="footer-space"></div>
+      </div>
+    </div>
+    
+    <div class="navbar">
+    <a onclick="CoCreate.nav('home.html')">Home</a>
+    <a onclick="CoCreate.nav('dms.html')">DMs</a>
+    <a class="active">Saved</a>
+    <a onclick="CoCreate.nav('profile.html')">My Profile</a>
+    <a onclick="CoCreate.nav('taskboard.html')">Task Board</a>
+    </div>
+  </div>
+
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script src="assets/js/matching.js"></script>
+  <script>
+    const user = CoCreate.ensureAuth();
+
+    function render(){
+      const saved = CoCreateData.projects.filter(p => p.savedBy.includes(user.id));
+      const container = document.getElementById('saved-projects');
+      
+      if(saved.length === 0){
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="icon">📌</div>
+            <div>No saved projects yet</div>
+            <div class="small" style="margin-top:8px">Save projects you're interested in to find them here later</div>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = '';
+      saved.forEach(p => {
+        const creator = getUserById(p.creatorId) || user;
+        const percent = computeMatchPercent(user.skills||[], p.requiredSkills||[]);
+        const el = document.createElement('div');
+        el.className = 'card project-card';
+        el.innerHTML = `
+          <div class="badge">${p.category}</div>
+          <div class="meta">
+            <img class="avatar" src="${creator.photo}" />
+            <div>${creator.name} · <span class="small">${p.postedAt}</span></div>
+          </div>
+          <div style="font-weight:700">${p.title}</div>
+          <div class="small" style="margin-top:6px">${p.overview}</div>
+          <div class="chips" style="margin-top:10px">${p.requiredSkills.map(s=>`<span class='chip'>${s}</span>`).join('')}</div>
+          <div style="margin-top:8px">${renderMatchChip(percent)}</div>
+          <div class="actions" style="margin-top:12px; display:flex; gap:8px; align-items:center">
+            <button class="button primary" onclick="openProject('${p.id}')">View</button>
+            <button class="button" onclick="messageCreator('${creator.id}')" style="background:var(--primary); color:#fff; border-color:var(--primary)">Message</button>
+            <button onclick="unsaveProject('${p.id}')" style="background:none; border:none; font-size:20px; cursor:pointer; color:var(--primary)" title="Remove from saved">🔖</button>
+          </div>
+        `;
+        container.appendChild(el);
+      });
+    }
+
+    window.unsaveProject = function(id){
+      const p = getProjectById(id); if(!p) return;
+      const idx = p.savedBy.indexOf(user.id);
+      if(idx > -1) p.savedBy.splice(idx, 1);
+      CoCreate.saveData();
+      CoCreate.toast('Removed from saved');
+      render();
+    };
+
+    window.messageCreator = function(uid){
+      const u = getUserById(uid) || user;
+      openMessageModal(u);
+    };
+
+    window.openProject = function(id){
+      localStorage.setItem('cocreate_project_id', id);
+      CoCreate.nav('project.html');
+    };
+
+    function openMessageModal(recipient){
+      const modal = document.createElement('div');
+      modal.className = 'message-modal';
+      modal.innerHTML = `
+        <div class="message-content">
+          <div class="message-header">
+            <div style="font-weight:600">Message ${recipient.name}</div>
+            <button class="button" onclick="this.closest('.message-modal').remove()">×</button>
+          </div>
+          <div class="message-list" id="message-list">
+            <div class="message-item">
+              <div class="small">No messages yet. Start the conversation!</div>
+            </div>
+          </div>
+          <div class="message-input">
+            <input id="message-text" placeholder="Type your message..." />
+            <button class="button primary" onclick="sendMessage('${recipient.id}')">Send</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+      document.getElementById('message-text').focus();
+    }
+
+    window.sendMessage = function(recipientId){
+      const text = document.getElementById('message-text').value.trim();
+      if(!text) return;
+      
+      const message = {
+        id: 'm' + Date.now(),
+        from: user.id,
+        to: recipientId,
+        text,
+        timestamp: new Date().toISOString()
+      };
+      
+      CoCreateData.messages.push(message);
+      CoCreate.toast('Message sent');
+      document.getElementById('message-text').value = '';
+    };
+
+    render();
+  </script>
+</body>
+</html>

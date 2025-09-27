@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CoCreate – Sign Up</title>
+  <link rel="stylesheet" href="assets/css/styles.css" />
+</head>
+<body>
+  <div class="mobile-frame">
+    <div class="mobile-content">
+      <div class="container">
+    <div class="center">
+      <div class="brand-hello">Join CoCreate</div>
+      <div class="subtitle">Create your account</div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="form">
+        <label class="small">School Email (.edu)</label>
+        <input id="email" type="email" placeholder="name@school.edu" />
+        <label class="small">Full Name</label>
+        <input id="name" type="text" placeholder="Your name" />
+        <label class="small">Password</label>
+        <input id="password" type="password" placeholder="Create password" />
+        <button id="create" class="button primary block">Create Account</button>
+      </div>
+    </div>
+
+    <div class="center small" style="margin-top:16px">Already have an account? <a href="index.html">Sign in</a></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script>
+    const prefill = localStorage.getItem('cocreate_prefill_email');
+    if(prefill) document.getElementById('email').value = prefill;
+
+    function isEdu(email){ return /@[a-zA-Z0-9-]+\.edu$/i.test(email.trim()); }
+
+    document.getElementById('create').addEventListener('click', () => {
+      const email = document.getElementById('email').value.trim();
+      const name = document.getElementById('name').value.trim();
+      if(!isEdu(email)) { CoCreate.toast('Use a valid .edu email'); return; }
+      if(!name) { CoCreate.toast('Enter your name'); return; }
+      const user = {
+        id: 'u' + Date.now(),
+        name,
+        school: '',
+        email,
+        skills: [],
+        photo: 'https://i.pravatar.cc/100?u=' + encodeURIComponent(email),
+        resumeUrl: ''
+      };
+      // Add to in-memory and persist current user only
+      CoCreateData.users.push(user);
+      CoCreate.saveCurrentUser(user);
+      CoCreate.toast('Account created');
+      setTimeout(() => CoCreate.nav('profile.html'), 500);
+    });
+  </script>
+</body>
+</html>

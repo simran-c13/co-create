@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CoCreate – DMs</title>
+  <link rel="stylesheet" href="assets/css/styles.css" />
+</head>
+<body>
+  <div class="mobile-frame">
+    <div class="mobile-content">
+      <div class="container">
+    <div class="header">
+      <button class="button" onclick="CoCreate.nav('home.html')">←</button>
+      <div class="title">Messages</div>
+    </div>
+
+    <div id="conversations"></div>
+
+    <div class="footer-space"></div>
+      </div>
+    </div>
+    
+    <div class="navbar">
+    <a onclick="CoCreate.nav('home.html')">Home</a>
+    <a class="active">DMs</a>
+    <a onclick="CoCreate.nav('saved.html')">Saved</a>
+    <a onclick="CoCreate.nav('profile.html')">My Profile</a>
+    <a onclick="CoCreate.nav('taskboard.html')">Task Board</a>
+    </div>
+  </div>
+
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script>
+    const user = CoCreate.ensureAuth();
+
+    function renderConversations(){
+      const container = document.getElementById('conversations');
+      
+      // Group messages by conversation
+      const conversations = {};
+      CoCreateData.messages.forEach(msg => {
+        const otherId = msg.from === user.id ? msg.to : msg.from;
+        if(!conversations[otherId]){
+          conversations[otherId] = {
+            user: getUserById(otherId) || { id: otherId, name: 'Unknown User', photo: 'https://i.pravatar.cc/100?img=0' },
+            messages: []
+          };
+        }
+        conversations[otherId].messages.push(msg);
+      });
+
+      if(Object.keys(conversations).length === 0){
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="icon">💬</div>
+            <div>No messages yet</div>
+            <div class="small" style="margin-top:8px">Start conversations by messaging project creators from the home feed</div>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = '';
+      Object.values(conversations).forEach(conv => {
+        const lastMessage = conv.messages[conv.messages.length - 1];
+        const isFromMe = lastMessage.from === user.id;
+        const timeAgo = new Date(lastMessage.timestamp).toLocaleDateString();
+        
+        const el = document.createElement('div');
+        el.className = 'card';
+        el.style.cursor = 'pointer';
+        el.innerHTML = `
+          <div class="row" style="align-items:center">
+            <img class="avatar" src="${conv.user.photo}" />
+            <div style="flex:1">
+              <div style="font-weight:600">${conv.user.name}</div>
+              <div class="small" style="margin-top:2px">
+                ${isFromMe ? 'You: ' : ''}${lastMessage.text.slice(0, 50)}${lastMessage.text.length > 50 ? '...' : ''}
+              </div>
+            </div>
+            <div class="small">${timeAgo}</div>
+          </div>
+        `;
+        el.addEventListener('click', () => openConversation(conv.user));
+        container.appendChild(el);
+      });
+    }
+
+    function openConversation(otherUser){
+      const modal = document.createElement('div');
+      modal.className = 'message-modal';
+      modal.innerHTML = `
+        <div class="message-content">
+          <div class="message-header">
+            <div style="font-weight:600">${otherUser.name}</div>
+            <button class="button" onclick="this.closest('.message-modal').remove()">×</button>
+          </div>
+          <div class="message-list" id="message-list">
+            ${getConversationMessages(otherUser.id).map(msg => `
+              <div class="message-item">
+                <div style="font-weight:600; font-size:12px; color: var(--muted)">
+                  ${msg.from === user.id ? 'You' : otherUser.name}
+                </div>
+                <div style="margin-top:4px">${msg.text}</div>
+                <div class="small" style="margin-top:2px">${new Date(msg.timestamp).toLocaleString()}</div>
+              </div>
+            `).join('')}
+          </div>
+          <div class="message-input">
+            <input id="message-text" placeholder="Type your message..." />
+            <button class="button primary" onclick="sendMessage('${otherUser.id}')">Send</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+      document.getElementById('message-text').focus();
+    }
+
+    function getConversationMessages(otherId){
+      return CoCreateData.messages
+        .filter(msg => (msg.from === user.id && msg.to === otherId) || (msg.from === otherId && msg.to === user.id))
+        .sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp));
+    }
+
+    window.sendMessage = function(recipientId){
+      const text = document.getElementById('message-text').value.trim();
+      if(!text) return;
+      
+      const message = {
+        id: 'm' + Date.now(),
+        from: user.id,
+        to: recipientId,
+        text,
+        timestamp: new Date().toISOString()
+      };
+      
+      CoCreateData.messages.push(message);
+      CoCreate.toast('Message sent');
+      document.getElementById('message-text').value = '';
+      
+      // Refresh the conversation
+      const messageList = document.getElementById('message-list');
+      const otherUser = getUserById(recipientId);
+      messageList.innerHTML = getConversationMessages(recipientId).map(msg => `
+        <div class="message-item">
+          <div style="font-weight:600; font-size:12px; color: var(--muted)">
+            ${msg.from === user.id ? 'You' : otherUser.name}
+          </div>
+          <div style="margin-top:4px">${msg.text}</div>
+          <div class="small" style="margin-top:2px">${new Date(msg.timestamp).toLocaleString()}</div>
+        </div>
+      `).join('');
+    };
+
+    renderConversations();
+  </script>
+</body>
+</html>
